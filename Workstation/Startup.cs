@@ -1,14 +1,12 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Microsoft.OpenApi.Models;
+using Workstation.Context;
+using Workstation.Utils;
 
 namespace Workstation
 {
@@ -25,6 +23,20 @@ namespace Workstation
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddControllers();
+            AddServices(services);
+            services.AddCustomJwtAuth();
+
+            services.AddDbContext<MainDbContext>(options =>
+            {
+                options.UseNpgsql(Configuration["DbConnectionString"],
+                    c => c.MigrationsAssembly("Workstation"));
+            });
+
+            services.AddSwaggerGen(opt =>
+            {
+                opt.SwaggerDoc("project", new OpenApiInfo {Title = "Курсовой проект", Version = "v1"});
+                opt.AddDefaultOptions();
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -35,14 +47,23 @@ namespace Workstation
                 app.UseDeveloperExceptionPage();
             }
 
+            app.UseSwagger(opt => { opt.RouteTemplate = "api/{documentName}/swagger/swagger.json"; });
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/api/project/swagger/swagger.json", "Курсовой проект");
+                options.RoutePrefix = "api/help";
+            });
+
             app.UseRouting();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapControllers();
-            });
+            app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
+        }
+
+        private void AddServices(IServiceCollection collection)
+        {
         }
     }
 }
